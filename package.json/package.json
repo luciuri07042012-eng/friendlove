@@ -1,0 +1,8 @@
+{
+  "name": "friendlove",
+  "main": "bot.js",
+  "dependencies": {
+    "@whiskeysockets/baileys": "latest",
+    "pino": "latest"
+  }
+}
