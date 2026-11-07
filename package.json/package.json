@@ -1,6 +1,9 @@
 {
   "name": "friendlove",
-  "main": "bot.js",
+  "main": "package.json/bot.js",
+  "scripts": {
+    "start": "node package.json/bot.js"
+  },
   "dependencies": {
     "@whiskeysockets/baileys": "latest",
     "pino": "latest"
