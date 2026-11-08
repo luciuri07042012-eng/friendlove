@@ -7,7 +7,7 @@ const http = require('http')
 http.createServer((req, res) => res.end('FriendLove Bot Activo')).listen(process.env.PORT || 3000)
 
 // NUMERO NUEVO - YA CORREGIDO
-const NUMERO_BOT = "18294548609"
+const NUMERO_BOT = "18295336936"
 
 const FRASES = [
     "La amistad es el amor que no se acaba nunca ❤️",
