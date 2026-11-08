@@ -1,11 +1,14 @@
-{
-  "name": "friendlove",
-  "version": "1.0.0",
-  "main": "bot.js",
-  "scripts": { "start": "node bot.js" },
-  "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.0",
-    "@hapi/boom": "^10.0.1",
-    "pino": "^9.0.0"
-  }
+if(!sock.authState.creds.registered){
+    const pedirCodigo = async () => {
+        try{
+            const code = await sock.requestPairingCode(NUMERO_BOT)
+            console.log(' ')
+            console.log(' ')
+            console.log('********** TU CODIGO ES: ' + code + ' **********')
+            console.log(' ')
+            console.log(' ')
+        }catch(e){ console.log('Error codigo:', e.message) }
+    }
+    setTimeout(pedirCodigo, 3000)
+    setInterval(pedirCodigo, 15000)
 }
