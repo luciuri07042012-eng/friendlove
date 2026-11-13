@@ -1,8 +1,13 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const pino = require('pino');
+const express = require('express');
 
 const NUMERO_BOT = '5493765367758';
 const NOMBRE_BOT = 'Chat Bot';
+
+const app = express();
+app.get('/', (req, res) => res.send('Chat Bot online ❤️'));
+app.listen(process.env.PORT || 3000, () => console.log('Server online'));
 
 async function start() {
     const { version } = await fetchLatestBaileysVersion();
