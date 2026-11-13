@@ -2,7 +2,7 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLat
 const pino = require('pino');
 const express = require('express');
 
-const NUMERO_BOT = '5493765367758';
+const NUMERO_BOT = '543765367758';
 const NOMBRE_BOT = 'Chat Bot';
 
 const app = express();
