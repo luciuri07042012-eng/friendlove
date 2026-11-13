@@ -1,167 +1,110 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys')
-const { Boom } = require('@hapi/boom')
-const pino = require('pino')
-const http = require('http')
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const pino = require('pino');
 
-// MANTENER RENDER DESPIERTO
-http.createServer((req, res) => res.end('FriendLove Bot Activo')).listen(process.env.PORT || 3000)
+const NUMERO_BOT = '5493765367758';
+const NOMBRE_BOT = 'Chat Bot';
 
-// NUMERO - INTENTO DE NUEVO
-const NUMERO_BOT = "18295336936"
+async function start() {
+    const { version } = await fetchLatestBaileysVersion();
+    const { state, saveCreds } = await useMultiFileAuthState('auth');
 
-const FRASES = [
-    "La amistad es el amor que no se acaba nunca ❤️",
-    "Un amigo de verdad es el que está en las buenas y en las malas",
-    "La vida es mejor con amigos como vos",
-    "Los mejores momentos son con amigos",
-    "Un amigo es un tesoro que no tiene precio"
-]
-
-const CHISTES = [
-    "¿Qué le dice un amigo a otro? ¡Nos vemos en FriendLove! 😂",
-    "¿Por qué los amigos no pelean? Porque se quieren mucho ❤️",
-    "¿Qué hace una abeja en el gimnasio? ¡Zum-ba! 🐝",
-    "¿Cómo se despiden los quimicos? Ácido un placer 😂"
-]
-
-const CONSEJOS = [
-    "Escuchá a tus amigos, a veces solo necesitan que los escuches",
-    "Decile a tu amigo hoy lo mucho que lo querés",
-    "Un mensaje puede alegrarle el día a alguien",
-    "Perdoná rápido y queré mucho",
-    "Nunca dejes de hablar con tu mejor amigo"
-]
-
-function random(arr) { return arr[Math.floor(Math.random() * arr.length)] }
-function porcentaje(nombre1, nombre2) {
-    let total = 0
-    const junto = (nombre1 + nombre2).toLowerCase()
-    for (let i = 0; i < junto.length; i++) total += junto.charCodeAt(i)
-    return total % 101
-}
-function barra(porc) {
-    const llenas = Math.floor(porc / 10)
-    return '❤️'.repeat(llenas) + '🤍'.repeat(10 - llenas)
-}
-
-async function startBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info')
     const sock = makeWASocket({
+        version,
         auth: state,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: false,
-        browser: ['FriendLove', 'Chrome', '1.0.0']
-    })
+        printQRInTerminal: true,
+        browser: [NOMBRE_BOT, 'Chrome', '1.0.0'],
+        syncFullHistory: false,
+        markOnlineOnConnect: true
+    });
 
-    sock.ev.on('creds.update', saveCreds)
+    sock.ev.on('creds.update', saveCreds);
 
-    // CODIGO QUE APARECE CADA 15 SEGUNDOS
-    if (!sock.authState.creds.registered) {
-        const pedirCodigo = async () => {
-            try {
-                const code = await sock.requestPairingCode(NUMERO_BOT)
-                console.log(' ')
-                console.log('********** TU CODIGO ES: ' + code + ' **********')
-                console.log(' ')
-            } catch (e) { console.log('Error codigo:', e.message) }
+    sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect } = update;
+        if (connection === 'close') {
+            const code = lastDisconnect?.error?.output?.statusCode;
+            const shouldReconnect = code !== DisconnectReason.loggedOut;
+            if (shouldReconnect) {
+                start();
+            }
+        } else if (connection === 'open') {
+            console.log('BOT CONECTADO COMO ' + NOMBRE_BOT);
         }
-        setTimeout(pedirCodigo, 3000)
-        setInterval(pedirCodigo, 15000)
+    });
+
+    if (!sock.authState.creds.registered) {
+        setTimeout(async () => {
+            try {
+                const code = await sock.requestPairingCode(NUMERO_BOT);
+                console.log('TU CODIGO ES: ' + code);
+            } catch (e) {
+                console.log('Error pidiendo codigo: ' + e.message);
+            }
+        }, 4000);
     }
 
-    sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update
-        if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut
-            console.log('Conexion cerrada, reconectando:', shouldReconnect)
-            if (shouldReconnect) startBot()
-        } else if (connection === 'open') {
-            console.log('✅ BOT CONECTADO CON EXITO!')
-        }
-    })
-
     sock.ev.on('messages.upsert', async ({ messages }) => {
-        const msg = messages[0]
-        if (!msg.message || msg.key.fromMe) return
-        const from = msg.key.remoteJid
-        const isGroup = from.endsWith('@g.us')
-        const texto = msg.message.conversation || msg.message.extendedTextMessage?.text || msg.message.imageMessage?.caption || ""
-        if (!texto) return
-        const comando = texto.toLowerCase().trim()
-        const args = texto.trim().split(' ').slice(1).join(' ')
-        const pushName = msg.pushName || 'Amigo'
+        try {
+            const m = messages[0];
+            if (!m.message || m.key.fromMe) return;
+            if (m.key.remoteJid === 'status@broadcast') return;
 
-        // MENU
-        if (comando === 'hola' || comando === 'menu' || comando === '.menu' || comando === '.help' || comando === 'help') {
-            await sock.sendMessage(from, { text: `Holaa ${pushName} ❤️ Soy *FriendLove Bot*\n\n*COMANDOS:*\n\n💖 *.amor @amigo* - Calcula amor\n💘 *.ship nombre1 nombre2* - Compatibilidad\n💌 *.frase* - Frase de amistad\n😂 *.chiste* - Chiste\n💡 *.consejo* - Consejo\n🏆 *.top* - Top amigos\n🎲 *.dado* - Tira un dado\n🪙 *.moneda* - Cara o cruz\n⏰ *.hora* - Hora actual\n📊 *.ping* - Ver si ando\n\nEscribí cualquier comando y te respondo!` })
-            return
-        }
+            const textoFull = (m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || '').trim();
+            const texto = textoFull.toLowerCase().trim();
+            const from = m.key.remoteJid;
+            const nombre = m.pushName || 'amigo';
 
-        if (comando === 'ping' || comando === '.ping') {
-            await sock.sendMessage(from, { text: 'Pong! 🏓 Ando joya bro, 100% activo' })
-            return
-        }
+            if (!texto.startsWith('.')) return;
 
-        if (comando === '.frase' || comando === 'frase') {
-            await sock.sendMessage(from, { text: '💌 *FRASE DEL DÍA*\n\n' + random(FRASES) })
-            return
-        }
+            let respuesta = '';
 
-        if (comando === '.chiste' || comando === 'chiste') {
-            await sock.sendMessage(from, { text: '😂 *CHISTE*\n\n' + random(CHISTES) })
-            return
-        }
+            if (texto === '.menu' || texto === '.help' || texto === '.ayuda') {
+                respuesta = `Holaa ${nombre}, soy *${NOMBRE_BOT}* ❤️🐱\n\n*MIS COMANDOS:*\n\n*.menu* - Ver este menu\n*.amor* - Mensaje de amor\n*.chiste* - Un chiste\n*.gatito* - Soy yo el gatito\n*.hola* - Te saludo\n*.bye* - Me despido\n*.owner* - Mi creador\n\n_Hecho con amor para el grupo Chat bot_ 💖`;
+            }
 
-        if (comando === '.consejo' || comando === 'consejo') {
-            await sock.sendMessage(from, { text: '💡 *CONSEJO*\n\n' + random(CONSEJOS) })
-            return
-        }
+            if (texto === '.amor') {
+                const frases = [
+                    `Te quiero mucho ${nombre}, sos lo mejor de este grupo ❤️`,
+                    `Sos una personita muy especial, no te olvides nunca 🥰`,
+                    `Hoy es un buen día para decirte que te quiero ❤️🐱`,
+                    `Si fueras un gatito, serías el más lindo del grupo 😻`
+                ];
+                respuesta = frases[Math.floor(Math.random() * frases.length)] + `\n\n- ${NOMBRE_BOT}`;
+            }
 
-        if (comando === '.dado' || comando === 'dado') {
-            await sock.sendMessage(from, { text: '🎲 Te salió un: *' + (Math.floor(Math.random() * 6) + 1) + '*' })
-            return
-        }
+            if (texto === '.chiste') {
+                const chistes = [
+                    `¿Qué hace un gatito en una computadora? ¡Miau-se! 😹`,
+                    `¿Por qué los gatos no usan celular? Porque ya tienen miaumail 😂`,
+                    `¿Qué le dice un gato a otro? ¡Miau gustas mucho! 😻`
+                ];
+                respuesta = chistes[Math.floor(Math.random() * chistes.length)];
+            }
 
-        if (comando === '.moneda' || comando === 'moneda') {
-            await sock.sendMessage(from, { text: '🪙 Salió: *' + (Math.random() > 0.5 ? 'CARA' : 'CRUZ') + '*' })
-            return
-        }
+            if (texto === '.gatito') {
+                respuesta = `Miauuu 🐱❤️\nSoy el gatito de Chat Bot, ¿me querés?\nSoy el más bonito del grupo, no me mientas 😼`;
+            }
 
-        if (comando === '.hora' || comando === 'hora') {
-            const ahora = new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })
-            await sock.sendMessage(from, { text: '⏰ Hora en Argentina: *' + ahora + '*' })
-            return
-        }
+            if (texto === '.hola' || texto === '.hi') {
+                respuesta = `Holaaa ${nombre}!! 👋😻 ¿Cómo estás? ¿Todo bien?`;
+            }
 
-        if (comando === '.top' || comando === 'top') {
-            await sock.sendMessage(from, { text: '🏆 *TOP MEJORES AMIGOS*\n\n1. Vos ❤️\n2. Tu mejor amigo/a\n3. El que siempre está\n4. El que te hace reír\n5. El que nunca falla' })
-            return
-        }
+            if (texto === '.bye' || texto === '.chau') {
+                respuesta = `Chauu ${nombre} 🥺 No te vayas, ¿o me dejás solito? Vuelve pronto ❤️`;
+            }
 
-        if (comando.startsWith('.amor') || comando.startsWith('.ship')) {
-            const partes = texto.trim().split(' ')
-            const n1 = partes[1] || pushName
-            const n2 = partes[2] || 'Tu crush'
-            const porc = porcentaje(n1, n2)
-            let mensaje = ''
-            if (porc > 90) mensaje = '¡SON ALMAS GEMELAS! 💍❤️'
-            else if (porc > 70) mensaje = '¡Hay mucho amor acá! 💖'
-            else if (porc > 40) mensaje = 'Hay buena onda, sigan intentando 💌'
-            else mensaje = 'Mmm... mejor como amigos 😅'
-            await sock.sendMessage(from, { text: `💘 *COMPATIBILIDAD*\n\n*${n1}* ❤️ *${n2}*\n\n${barra(porc)}\n*${porc}%* de compatibilidad\n\n${mensaje}` })
-            return
-        }
+            if (texto === '.owner' || texto === '.creador') {
+                respuesta = `Mi creador es el mejor del mundo, el dueño del grupo Chat bot 👑❤️\nEs el que me hizo con mucho amor.`;
+            }
 
-        if (comando.startsWith('.decir ')) {
-            await sock.sendMessage(from, { text: '🗣️ ' + texto.slice(7) })
-            return
+            if (respuesta) {
+                await sock.sendMessage(from, { text: respuesta }, { quoted: m });
+            }
+        } catch (err) {
+            console.log('Error: ' + err.message);
         }
-
-        if (comando === '.bot' || comando === 'bot') {
-            await sock.sendMessage(from, { text: 'Si, estoy acá bro ❤️ Escribí *.menu* para ver todo lo que hago' })
-            return
-        }
-    })
+    });
 }
 
-startBot()
+start();
