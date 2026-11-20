@@ -11,7 +11,7 @@ app.listen(process.env.PORT || 3000, () => console.log('Server online'));
 
 async function start() {
     const { version } = await fetchLatestBaileysVersion();
-    const { state, saveCreds } = await useMultiFileAuthState('auth');
+    const { state, saveCreds } = await useMultiFileAuthState('auth_nueva');
 
     const sock = makeWASocket({
         version,
